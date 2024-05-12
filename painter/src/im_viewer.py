@@ -195,6 +195,7 @@ class ImViewer(QtWidgets.QWidget):
         self.update_outline()
 
         self.scene.update_axial_slice_pos_indicator()
+        self.scene.update_sagittal_slice_pos_indicator()
 
     def keyPressEvent(self, event):
         # if control key is pressed then hide the paint brush as the user wants to pan now.
