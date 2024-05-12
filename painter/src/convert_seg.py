@@ -56,6 +56,12 @@ def convert_seg_to_annot(seg):
     annot[1] = seg_fg
     return annot
 
+def convert_seg_to_fg_annot(seg):
+    seg_fg = seg > 0
+    annot = np.zeros([2] + list(seg.shape))
+    annot[1] = seg_fg
+    return annot
+
 class ConvertProgressWidget(BaseProgressWidget):
 
     def __init__(self):

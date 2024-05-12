@@ -21,11 +21,11 @@ from PyQt5 import QtWidgets
 
 class VisibilityWidget(QtWidgets.QWidget):
 
-    def __init__(self, layout_class, parent, show_guide=False):
+    def __init__(self, layout_class, parent, show_guide=False, show_prelabel=False):
         super().__init__()
-        self.initUI(layout_class, parent, show_guide)
+        self.initUI(layout_class, parent, show_guide, show_prelabel)
 
-    def initUI(self, layout_class, parent, show_guide):
+    def initUI(self, layout_class, parent, show_guide, show_prelabel):
         # container goes full width to allow contents to be center aligned within it.
         widget = QtWidgets.QWidget()
         layout = QtWidgets.QHBoxLayout()
@@ -56,6 +56,13 @@ class VisibilityWidget(QtWidgets.QWidget):
             guide_image_checkbox.setChecked(False)
             self.guide_image_checkbox = guide_image_checkbox
             self.guide_image_checkbox.stateChanged.connect(parent.guide_checkbox_change)
+        
+        if show_prelabel:
+            prelabel_checkbox = QtWidgets.QCheckBox("Preliminary labels (D)")
+            container_layout.addWidget(prelabel_checkbox)
+            prelabel_checkbox.setChecked(False)
+            self.prelabel_checkbox = prelabel_checkbox
+            self.prelabel_checkbox.stateChanged.connect(parent.prelabel_checkbox_change)
 
         seg_checkbox.setChecked(False)
         annot_checkbox.setChecked(True)
