@@ -13,6 +13,7 @@ from extract_image_props import ExtractSegImagePropsWidget
 from compute_metrics import ExtractSegMetricsWidget
 from random_split import RandomSplitWidget
 import im_utils
+from plot_seg_metrics import MetricsPlot
 
 def add_network_menu(window, menu_bar):
     """ Not in use right now as training happens automatically when the 
@@ -196,6 +197,24 @@ def add_extras_menu(main_window, menu_bar, project_open=False):
 
 
     if project_open:
+        metrics_plot_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'),
+                                                             'Show metrics plot',
+                                                              main_window)
+        main_window.metrics_plot = MetricsPlot()
+        def navigate_to_file(fname):
+            fpath = os.path.join(main_window.dataset_dir, fname)
+            main_window.nav.image_path = fpath
+            main_window.nav.update_nav_label()
+            main_window.update_file(fpath)
+        def open_metric_plot():
+            main_window.metrics_plot.create_metrics_plot(
+                main_window.proj_file_path,
+                navigate_to_file,
+                main_window.image_path)
+        metrics_plot_btn.triggered.connect(open_metric_plot)
+        extras_menu.addAction(metrics_plot_btn)
+
+
         extend_dataset_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'), 'Extend dataset', main_window)
         def update_dataset_after_check():
             was_extended, file_names = check_extend_dataset(main_window,
