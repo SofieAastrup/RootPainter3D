@@ -79,6 +79,8 @@ class RootPainter(QtWidgets.QMainWindow):
         self.im_height = None
         self.annot_data = None
         self.seg_data = None
+        self.prelabel_data = None
+        self.prelabel_exists = False
 
         # for patch segment, useful for knowing how much annotation to send to the server.
         self.input_shape = (52, 228, 228)
@@ -145,6 +147,10 @@ class RootPainter(QtWidgets.QMainWindow):
             self.image_fnames = settings['file_names']
             self.seg_dir = self.proj_location / 'segmentations'
             self.log_dir = self.proj_location / 'logs'
+            if 'prelabel_dir' in settings:
+                # self.prelabel_dir = self.proj_location / 'prelabel'
+                self.prelabel_dir = self.sync_dir / 'datasets' / PurePath(settings['prelabel_dir'])
+                self.prelabel_exists = True
 
             self.train_seg_dirs = []
             self.train_annot_dirs = []
@@ -178,6 +184,7 @@ class RootPainter(QtWidgets.QMainWindow):
             # show the last image segmented until the user navigates to it, or we will constantly
             # move forwards through the dataset without annotating images 
             # (if we simply close and re-open the client)
+                  
             last_with_seg = penultimate_fname_with_segmentation(self.image_fnames, self.seg_dir)
             if last_with_seg:
                 fname = last_with_seg
@@ -304,6 +311,14 @@ class RootPainter(QtWidgets.QMainWindow):
         else:
             # it should come later
             self.seg_data = None
+
+        if hasattr(self, 'prelabel_dir'):
+            prelabel_image_path = os.path.join(os.path.join(self.prelabel_dir, self.fname))
+            # and a guide image is available for the current image.
+            if os.path.isfile(prelabel_image_path):
+                self.prelabel_data = im_utils.load_image(prelabel_image_path)
+            else:
+                pass
            
         for v in self.viewers:
             v.update_image()
@@ -366,6 +381,18 @@ class RootPainter(QtWidgets.QMainWindow):
                                 self.cur_class,
                                 seg_fname)
         return os.path.join(self.seg_dir, seg_fname)
+    
+    # def get_prelabel_path(self, fname=None):
+    #     if fname is None:
+    #         fname = self.fname
+    #     prelabel_fname = fname.replace('.nrrd', '.nii.gz')
+    #     if hasattr(self, 'classes') and len(self.classes) > 1:
+    #         return os.path.join(self.prelabel_dir,
+    #                             self.cur_class,
+    #                             prelabel_fname)
+    #     return os.path.join(self.prelabel_dir, prelabel_fname)
+
+        
 
 
     def get_train_seg_path(self, fname=None):
@@ -459,7 +486,7 @@ class RootPainter(QtWidgets.QMainWindow):
 
 
         menus.add_help_menu(self, menu_bar)
-        menus.add_extras_menu(self, menu_bar)
+        menus.add_extras_menu(self, menu_bar, prelabels=self.prelabel_exists)
         menus.add_measurements_menu(self, menu_bar)
 
         # Add project btns to open window (so it shows something useful)
@@ -750,7 +777,7 @@ class RootPainter(QtWidgets.QMainWindow):
         if len(self.classes) > 1:
             menus.add_class_menu(self, self.menu_bar)
         menus.add_help_menu(self, self.menu_bar)
-        menus.add_extras_menu(self, menu_bar, project_open=True)
+        menus.add_extras_menu(self, menu_bar, project_open=True, prelabels=self.prelabel_exists)
         menus.add_measurements_menu(self, menu_bar)
 
 

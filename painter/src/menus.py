@@ -7,12 +7,13 @@ from PyQt5 import QtWidgets
 from PyQt5 import QtGui
 from segment_folder import SegmentFolderWidget
 from segment import segment_full_image
-from convert_seg import ConvertSegWidget, convert_seg_to_annot
+from convert_seg import ConvertSegWidget, convert_seg_to_annot, convert_seg_to_fg_annot
 from assign_corrections import AssignCorrectionsWidget
 from extract_image_props import ExtractSegImagePropsWidget
 from compute_metrics import ExtractSegMetricsWidget
 from random_split import RandomSplitWidget
 import im_utils
+from plot_seg_metrics import MetricsPlot
 
 def add_network_menu(window, menu_bar):
     """ Not in use right now as training happens automatically when the 
@@ -156,7 +157,7 @@ def add_help_menu(self,  menu_bar):
     help_menu.addAction(shortcut_btn)
     
 
-def add_extras_menu(main_window, menu_bar, project_open=False):
+def add_extras_menu(main_window, menu_bar, project_open=False, prelabels = False):
     extras_menu = menu_bar.addMenu('Extras')
 
     def show_conv_to_annot():
@@ -196,6 +197,44 @@ def add_extras_menu(main_window, menu_bar, project_open=False):
 
 
     if project_open:
+        metrics_plot_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'),
+                                                             'Show metrics plot',
+                                                              main_window)
+        main_window.metrics_plot = MetricsPlot()
+        def navigate_to_file(fname):
+            fpath = os.path.join(main_window.dataset_dir, fname)
+            main_window.nav.image_path = fpath
+            main_window.nav.update_nav_label()
+            main_window.update_file(fpath)
+        def open_metric_plot():
+            main_window.metrics_plot.create_metrics_plot(
+                main_window.proj_file_path,
+                navigate_to_file,
+                main_window.image_path)
+        metrics_plot_btn.triggered.connect(open_metric_plot)
+        extras_menu.addAction(metrics_plot_btn)
+
+
+
+        #convert preliminary labels to annotation
+        if prelabels:
+            conv_this_annot_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'),
+                                'Convert preliminary labels to current annotation',
+                                 main_window)
+            def convert_prelabel():
+                main_window.annot_data = convert_seg_to_fg_annot(main_window.prelabel_data)
+                for v in main_window.viewers:
+                    v.update_image()
+                    v.update_cursor()
+                    # # hide the segmentation if we don't have it
+                    # if main_window.seg_data is None and v.seg_visible:
+                    #     # show seg in order to show the loading message
+                    #     v.show_hide_seg()
+            conv_this_annot_btn.triggered.connect(convert_prelabel)
+            extras_menu.addAction(conv_this_annot_btn)  
+
+
+
         extend_dataset_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'), 'Extend dataset', main_window)
         def update_dataset_after_check():
             was_extended, file_names = check_extend_dataset(main_window,
@@ -295,6 +334,12 @@ def add_view_menu(window, im_viewer, menu_bar):
     toggle_guide_image_visibility_btn.setStatusTip('Show or hide image')
     toggle_guide_image_visibility_btn.triggered.connect(im_viewer.show_hide_guide_image)
     view_menu.addAction(toggle_guide_image_visibility_btn)
+
+    toggle_prelabel_visibility_btn = QtWidgets.QAction(QtGui.QIcon('missing.png'), 'Toggle guide image visibility', window)
+    toggle_prelabel_visibility_btn.setShortcut('D')
+    toggle_prelabel_visibility_btn.setStatusTip('Show or hide image')
+    toggle_prelabel_visibility_btn.triggered.connect(im_viewer.show_hide_prelabel)
+    view_menu.addAction(toggle_prelabel_visibility_btn)
 
 
     # toggle outline visibility

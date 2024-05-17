@@ -42,7 +42,8 @@ class CreateProjectWidget(QtWidgets.QWidget):
         self.use_random_weights = True
         self.sync_dir = sync_dir
         self.guide_image = None
-        self.patch_image = False
+        self.prelabel_image = None
+        self.patch_image = True
         self.initUI()
 
     def initUI(self):
@@ -54,6 +55,7 @@ class CreateProjectWidget(QtWidgets.QWidget):
 
         self.add_im_dir_widget()
         self.add_guide_im_dir_widget()
+        self.add_prelabel_dir_widget()
         self.add_radio_widget()
         self.add_patch_widget()
         self.add_model_btn()
@@ -91,6 +93,16 @@ class CreateProjectWidget(QtWidgets.QWidget):
         specify_image_dir_btn.clicked.connect(self.select_guide_im_dir)
         self.layout.addWidget(specify_image_dir_btn)
 
+    def add_prelabel_dir_widget(self):
+        prelabel_directory_label = QtWidgets.QLabel()
+        prelabel_directory_label.setText("Preliminary segmentation directory: Not yet specified")
+        self.layout.addWidget(prelabel_directory_label)
+        self.prelabel_directory_label = prelabel_directory_label
+
+        specify_image_dir_btn = QtWidgets.QPushButton('Specify preliminary directory (optional)')
+        specify_image_dir_btn.clicked.connect(self.select_prelabel_im_dir)
+        self.layout.addWidget(specify_image_dir_btn)
+
     def add_radio_widget(self):
         radio_widget = QtWidgets.QWidget()
         radio_layout = QtWidgets.QHBoxLayout()
@@ -116,7 +128,7 @@ class CreateProjectWidget(QtWidgets.QWidget):
         self.layout.addWidget(patch_widget)
 
         patch = QtWidgets.QCheckBox("Turn image into patches")
-        patch.setChecked(False)
+        patch.setChecked(True)
         patch.name = "patched"
         patch.toggled.connect(self.on_patch_cliked)
         patch_layout.addWidget(patch)
@@ -203,6 +215,16 @@ class CreateProjectWidget(QtWidgets.QWidget):
                 # self.create_project_btn.setEnabled(False)
                 self.guide_image = None
                 return
+        
+        if not self.prelabel_image == None:
+            cur_prelabels = os.listdir(self.prelabel_image)
+            cur_prelabels = [f for f in cur_prelabels if is_image(f)]
+            if not cur_prelabels:
+                message = "Folder of preliminary segmentations contains no compatible images. Valid formats include NIfTI (.nii.gz) and nrrd. \nYou can continue without preliminary labels"
+                self.info_label.setText(message)
+                # self.create_project_btn.setEnabled(False)
+                self.prelabel_image = None
+                return
 
 
         if len(self.palette_edit_widget.get_brush_data()) < 1:
@@ -240,6 +262,17 @@ class CreateProjectWidget(QtWidgets.QWidget):
         self.guide_dialog.fileSelected.connect(output_selected)
         self.guide_dialog.open()
 
+    def select_prelabel_im_dir(self):
+        self.prelabel_dialog = QtWidgets.QFileDialog(self)
+        self.prelabel_dialog.setFileMode(QtWidgets.QFileDialog.Directory)
+        def output_selected():
+            self.prelabel_image = self.prelabel_dialog.selectedFiles()[0]
+            self.prelabel_directory_label.setText('Prelabel Image directory: ' + self.prelabel_image)
+            self.validate()
+
+        self.prelabel_dialog.fileSelected.connect(output_selected)
+        self.prelabel_dialog.open()
+
     def select_model(self):
         options = QtWidgets.QFileDialog.Options()
         file_path, _ = QtWidgets.QFileDialog.getOpenFileName(self,
@@ -276,6 +309,17 @@ class CreateProjectWidget(QtWidgets.QWidget):
                 message = ("When creating a project the selected dataset guides must "
                            "be in the datasets folder. The selected dataset is "
                            f"{guides_path} and the datasets folder is "
+                           f"{datasets_dir}.")
+                QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
+                return
+            
+        if self.prelabel_image:
+            prelabel_path = os.path.abspath(self.prelabel_image)
+
+            if not prelabel_path.startswith(datasets_dir):
+                message = ("When creating a project the selected preliminary labels must "
+                           "be in the datasets folder. The selected dataset is "
+                           f"{prelabel_path} and the datasets folder is "
                            f"{datasets_dir}.")
                 QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
                 return
@@ -340,6 +384,10 @@ class CreateProjectWidget(QtWidgets.QWidget):
 
         if self.guide_image:
             project_info['guide_image_dir'] = self.guide_image 
+        
+        if self.prelabel_image:
+            project_info['prelabel_dir'] = self.prelabel_image 
+
 
         if self.patch_image:
             if len(all_fnames) == 1:
@@ -367,20 +415,55 @@ class CreateProjectWidget(QtWidgets.QWidget):
                         return
                     gname = all_gnames[0]
                     print(f"{gname=}")
-
+            
                     guide_path = os.path.join(self.guide_image,  gname).replace(".nii.gz", '')
                     split_single_image(guide_path+".nii.gz", guide_path)
                     project_info['guide_image_dir'] = guide_path
                     print(f"{guide_path=}")
                     all_guides = os.listdir(guide_path)
+                    print(f"{all_guides=}")
                     all_guides.sort()
+                    print(f"{all_guides=}")
                     if all_fnames != all_guides:
+                        print(f"{all_fnames=}")
+                        print(f"{all_guides=}")
                         message = ("guide image patching failded because the dimensions of"
                                    "of the guide image did not match the actual image")
                         QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
                         return
+                    
+                if self.prelabel_image:
+                    print(f"{self.prelabel_image=}")
+                    all_gnames = os.listdir(self.prelabel_image)
+                    #only images
+                    all_gnames = [a for a in all_gnames if is_image(a)]
+                    # ignore these 'hidden' files.
+                    all_gnames = [a for a in all_gnames if a[0] != '.']
+                    if len(all_gnames) > 1:
+                        message = ("Image folder contains one image, but the"
+                                    f"image folder contains {len(all_gnames)} images."
+                                    "Please only include the correct image.")
+                        QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
+                        return
+                    gname = all_gnames[0]
+                    print(f"{gname=}")
+            
+                    prelabel_path = os.path.join(self.prelabel_image,  gname).replace(".nii.gz", '')
+                    split_single_image(prelabel_path+".nii.gz", prelabel_path)
+                    project_info['prelabel_dir'] = prelabel_path
+                    print(f"{prelabel_path=}")
+                    all_prelabels = os.listdir(prelabel_path)
+                    print(f"{all_prelabels=}")
+                    all_prelabels.sort()
+                    print(f"{all_prelabels=}")
+                    if all_fnames != all_prelabels:
+                        print(f"{all_fnames=}")
+                        print(f"{all_prelabels=}")
+                        message = ("Preliminary segmentation image patching failded because the dimensions of"
+                                   "of the preliminary segmentation image did not match the actual image")
+                        QtWidgets.QMessageBox.about(self, 'Project Creation Error', message)
+                        return
         
-
 
         # only add classes info if the palette is defined.
         # otherwise the server will default to single class (fg/bg)

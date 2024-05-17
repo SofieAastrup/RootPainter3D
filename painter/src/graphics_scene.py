@@ -109,18 +109,45 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         for v in self.parent.parent.viewers:
             if v.mode == 'sagittal':
                 slice_nav = self.parent.parent.axial_viewer.slice_nav
+                y1 = 0
+                y2 = self.parent.parent.annot_data.shape[2]
+                x1 = slice_nav.slice_idx
+                x1 += 0.5
+                x2 = x1
+                if hasattr(v.scene, 'line'):
+                   v.scene.line.setLine(x1, y1, x2, y2)
+                else:
+                    # add line if it doesn't exist
+                    v.scene.line = QtWidgets.QGraphicsLineItem(x1, y1, x2, y2)
+                    v.scene.line.setPen(QtGui.QPen(QtGui.QColor(255, 60, 60), 1.5,
+                                        QtCore.Qt.DotLine))
+                    v.scene.addItem(v.scene.line)
+                    v.scene.line.setVisible(True)
+
+    def update_sagittal_slice_pos_indicator(self):
+        """ update the position of the axial slice indicator in the sagittal view """
+        for v in self.parent.parent.viewers:
+            if v.mode == 'axial':
+                slice_nav = self.parent.parent.sagittal_viewer.slice_nav
                 x1 = 0.0
                 x2 = self.parent.parent.annot_data.shape[2]
+                # y1 = 0
+                # y2 = self.parent.parent.annot_data.shape[2]
+                # print(f"{self.parent.parent.annot_data.shape=}")
+                # print(f"{y2=}")
                 y1 = slice_nav.max_slice_idx - slice_nav.slice_idx
+                # x1 = slice_nav.slice_idx
                 y1 += 0.5
+                # x1 += 0.5
+                # x2 = x1
                 y2 = y1
                 if hasattr(v.scene, 'line'):
                    v.scene.line.setLine(x1, y1, x2, y2)
                 else:
                     # add line if it doesn't exist
                     v.scene.line = QtWidgets.QGraphicsLineItem(x1, y1, x2, y2)
-                    v.scene.line.setPen(QtGui.QPen(QtGui.QColor(255, 60, 60), 0.2,
-                                        QtCore.Qt.DashLine))
+                    v.scene.line.setPen(QtGui.QPen(QtGui.QColor(255, 60, 60), 1.0,
+                                        QtCore.Qt.DotLine))
                     v.scene.addItem(v.scene.line)
                     v.scene.line.setVisible(True)
 

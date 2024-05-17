@@ -141,6 +141,14 @@ def seg_slice_to_pixmap(slice_np):
     q_image = qimage2ndarray.array2qimage(np_rgb)
     return QtGui.QPixmap.fromImage(q_image)
 
+def prelabel_slice_to_pixmap(slice_np):
+    """ convert slice from the numpy segmentation data
+        to a PyQt5 pixmap object """
+    np_rgb = np.zeros((slice_np.shape[0], slice_np.shape[1], 4))
+    np_rgb[slice_np > 0] = [222, 92, 255, 180]
+    q_image = qimage2ndarray.array2qimage(np_rgb)
+    return QtGui.QPixmap.fromImage(q_image)
+
 def get_slice(volume, slice_idx, mode):
     if mode == 'sagittal':
         if len(volume.shape) > 3:

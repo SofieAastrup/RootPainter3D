@@ -45,12 +45,14 @@ class ImViewer(QtWidgets.QWidget):
         super().__init__()
         self.annot_visible = True
         self.seg_visible = False
+        self.prelabel_visible = False
         self.image_visible = True
         self.guide_image_visible = False
         self.outline_visible = False
         self.image_pixmap_holder = None
         self.guide_image_pixmap_holder = None
         self.seg_pixmap_holder = None
+        self.prelabel_pixmap_holder = None
         self.blank_pixmap = None
         self.black_pixmap = None
         self.seg_pixmap = None
@@ -108,13 +110,15 @@ class ImViewer(QtWidgets.QWidget):
         self.inner_layout.addWidget(self.graphics_view)
         if self.mode == 'axial':
             self.vis_widget = VisibilityWidget(QtWidgets.QVBoxLayout, self,
-                                               show_guide=hasattr(self.parent, 'guide_image_dir'))
+                                               show_guide=hasattr(self.parent, 'guide_image_dir'),
+                                               show_prelabel=hasattr(self.parent, 'prelabel_dir'))
             self.vis_widget.setMaximumWidth(200)
             # left, top, right, bottom
             self.bottom_bar_layout.setContentsMargins(20, 0, 20, 0)
         else:
             self.vis_widget = VisibilityWidget(QtWidgets.QHBoxLayout, self,
-                                               show_guide=hasattr(self.parent, 'guide_image_dir'))
+                                               show_guide=hasattr(self.parent, 'guide_image_dir'),
+                                               show_prelabel=hasattr(self.parent, 'prelabel_dir'))
 
             self.vis_widget.setMaximumWidth(500)
             # left, top, right, bottom
@@ -139,6 +143,13 @@ class ImViewer(QtWidgets.QWidget):
         checked = (state == QtCore.Qt.Checked)
         if checked is not self.annot_visible:
             self.show_hide_annot()
+
+    def prelabel_checkbox_change(self, state):
+        """ set checkbox to specified state and update visibility if required """
+        checked = (state == QtCore.Qt.Checked)
+        if checked is not self.prelabel_visible:
+            self.show_hide_prelabel()
+
 
     def im_checkbox_change(self, state):
         """ set checkbox to specified state and update visibility if required """
@@ -195,6 +206,7 @@ class ImViewer(QtWidgets.QWidget):
         self.update_outline()
 
         self.scene.update_axial_slice_pos_indicator()
+        self.scene.update_sagittal_slice_pos_indicator()
 
     def keyPressEvent(self, event):
         # if control key is pressed then hide the paint brush as the user wants to pan now.
@@ -280,6 +292,18 @@ class ImViewer(QtWidgets.QWidget):
             self.annot_visible = True
         self.vis_widget.annot_checkbox.setChecked(self.annot_visible)
 
+    def show_hide_prelabel(self):
+        """ show or hide the preliminary labels.
+            Could be useful to use them as annotations, if they are good.
+        """
+        if self.prelabel_visible:
+            self.prelabel_pixmap_holder.setPixmap(self.blank_pixmap)
+            self.prelabel_visible = False
+        else:
+            self.prelabel_pixmap_holder.setPixmap(self.prelabel_pixmap)
+            self.prelabel_visible = True
+        self.vis_widget.prelabel_checkbox.setChecked(self.prelabel_visible)
+
     def show_hide_outline(self):
         """ show or hide the current outline.
             Could be useful to help inspect the
@@ -327,6 +351,7 @@ class ImViewer(QtWidgets.QWidget):
             self.scene.cursor_pixmap.fill(Qt.transparent)
             self.scene.cursor_pixmap_holder = self.scene.addPixmap(self.scene.cursor_pixmap)
 
+    # I don't think this is currently in use:
     def fill_slice(self):
         self.scene.annot_pixmap = im_utils.fill_annot(self.scene.annot_pixmap)
         self.scene.annot_pixmap_holder.setPixmap(self.scene.annot_pixmap)
@@ -423,6 +448,22 @@ class ImViewer(QtWidgets.QWidget):
             self.seg_pixmap_holder = self.scene.addPixmap(self.seg_pixmap)
         if not self.seg_visible:
             self.seg_pixmap_holder.setPixmap(self.blank_pixmap)
+
+        if self.parent.prelabel_data is not None:
+            prelabel_slice = im_utils.get_slice(self.parent.prelabel_data,
+                                           self.slice_nav.slice_idx,
+                                           self.mode)
+            self.prelabel_pixmap = im_utils.prelabel_slice_to_pixmap(prelabel_slice)
+            self.scene.prelabel_pixmap = self.prelabel_pixmap
+
+            if self.prelabel_pixmap_holder:
+                self.prelabel_pixmap_holder.setPixmap(self.prelabel_pixmap)
+                self.scene.prelabel_pixmap = self.prelabel_pixmap
+            else:
+                self.prelabel_pixmap_holder = self.scene.addPixmap(self.prelabel_pixmap)
+            if not self.prelabel_visible:
+                self.prelabel_pixmap_holder.setPixmap(self.blank_pixmap)
+
 
 
     def update_cursor(self, ctrl_press=False):

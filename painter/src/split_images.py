@@ -36,4 +36,3 @@ def split_images(image_folder, save_folder):
     fnames = os.listdir(image_folder)
     for f in fnames:
         split_single_image(f"{image_folder}/{f}", f"{save_folder}/{f[:-7]}")
-
