@@ -49,6 +49,12 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
         self.outline_pixmap_holder = None
         self.cursor_pixmap = None
         self.mouse_down = False
+        self.last_ax_x = 0
+        self.last_ax_y = 0
+        self.last_sag_x = 0
+        self.last_sag_y = 0
+
+        
  
     def keyReleaseEvent(self, event):
         if event.key() == QtCore.Qt.Key_Alt:
@@ -123,6 +129,9 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
                                         QtCore.Qt.DotLine))
                     v.scene.addItem(v.scene.line)
                     v.scene.line.setVisible(True)
+        self.updateCurserPosView()
+                    
+
 
     def update_sagittal_slice_pos_indicator(self):
         """ update the position of the axial slice indicator in the sagittal view """
@@ -143,6 +152,7 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
                                         QtCore.Qt.DotLine))
                     v.scene.addItem(v.scene.line)
                     v.scene.line.setVisible(True)
+        self.updateCurserPosView()
 
     # FIXME: should we remove this commented out function?
     #     def flood_fill(self, x, y):
@@ -176,7 +186,6 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
     #         ]
     #         q_image = qimage2ndarray.array2qimage(np_rgba)
     #         return QtGui.QPixmap.fromImage(q_image)
- 
     def mousePressEvent(self, event):
         super().mousePressEvent(event)
         modifiers = QtWidgets.QApplication.keyboardModifiers()
@@ -337,6 +346,12 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
 
         pos = event.scenePos()
         x, y = pos.x(), pos.y()
+        if self.parent.mode == 'axial':
+            self.last_ax_x = x
+            self.last_ax_y = y
+        elif self.parent.mode == 'sagittal':
+            self.last_sag_x = x
+            self.last_sag_y = y
 
         if modifiers == QtCore.Qt.ControlModifier:
             # if control key is pressed then don't do anything with the graphics scene
@@ -373,3 +388,53 @@ class GraphicsScene(QtWidgets.QGraphicsScene):
 
         self.last_x = x
         self.last_y = y
+        self.updateCurserPosView()
+
+    def updateCurserPosView(self):
+        #show the cursor position in the opposite viewer 
+        for v in self.parent.parent.viewers:
+            if v.mode == 'sagittal':
+                slice_nav = self.parent.parent.axial_viewer.slice_nav
+                y1 = 0
+                y2 = self.parent.parent.annot_data.shape[2]
+                x1 = slice_nav.slice_idx
+                x1 += 0.5
+                x2 = x1
+                y_pos =  min(max(y1, self.last_ax_x), y2)
+                self.last_ax_x = y_pos
+                if hasattr(v.scene, 'cursorPos'):
+                    if y_pos != 0:
+                        v.scene.cursorPos.setVisible(True)
+                        v.scene.cursorPos.setLine(x1-4, y_pos, x1+4, y_pos)
+                    else:
+                        v.scene.cursorPos.setVisible(False)
+                else:
+                    v.scene.cursorPos = QtWidgets.QGraphicsLineItem(x1-4, y_pos, x1+4, y_pos)
+                    
+                    v.scene.cursorPos.setPen(QtGui.QPen(QtGui.QColor(255, 60, 60), 1.5,
+                                        QtCore.Qt.SolidLine))
+                    v.scene.addItem(v.scene.cursorPos)
+                    v.scene.cursorPos.setVisible(True)
+            if v.mode == 'axial':
+                slice_nav = self.parent.parent.sagittal_viewer.slice_nav
+                x1 = 0.0
+                x2 = self.parent.parent.annot_data.shape[2]
+                y1 = slice_nav.max_slice_idx - slice_nav.slice_idx
+                y1 += 0.5
+                y2 = y1
+                x_pos =  min(max(x1, self.last_sag_y), x2)
+                self.last_sag_y = x_pos
+                if hasattr(v.scene, 'cursorPos'):
+                    if x_pos != 0:
+                        v.scene.cursorPos.setVisible(True)
+                        v.scene.cursorPos.setLine(x_pos, y1-4, x_pos, y1+4)
+                    else:
+                        v.scene.cursorPos.setVisible(False)
+                else:
+                    v.scene.cursorPos = QtWidgets.QGraphicsLineItem(x_pos, y1-4, x_pos, y1+4)
+                    
+                    v.scene.cursorPos.setPen(QtGui.QPen(QtGui.QColor(255, 60, 60), 1.5,
+                                        QtCore.Qt.SolidLine))
+                    v.scene.addItem(v.scene.cursorPos)
+                    v.scene.cursorPos.setVisible(True)
+
